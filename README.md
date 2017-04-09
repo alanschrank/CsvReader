@@ -1,8 +1,11 @@
 CSV Reader
 ==========
 
-The [CsvReader](https://www.nuget.org/packages/LumenWorksCsvReader/) library is an extended version of Sebastian Lorien's [fast CSV Reader](http://www.codeproject.com/Articles/9258/A-Fast-CSV-Reader) project 
+The [CsvReader](https://www.nuget.org/packages/LumenWorksCsvReader/) library is an extended version of Sébastien Lorion's [fast CSV Reader](http://www.codeproject.com/Articles/9258/A-Fast-CSV-Reader) project 
 and provides fast parsing and reading of CSV files
+
+[![NuGet](https://img.shields.io/nuget/v/LumenWorksCsvReader.svg)](https://img.shields.io/nuget/v/LumenWorksCsvReader.svg)
+[![Build status](https://ci.appveyor.com/api/projects/status/ouvglmaox83bpyti/branch/master?svg=true)](https://ci.appveyor.com/project/PaulHatcher/csvreader/branch/master)
 
 To this end it is a straight drop-in replacement for the existing NuGet package [LumenWork.Framework.IO](https://www.nuget.org/packages/LumenWorks.Framework.IO/), but with additional
 capabilities; the other rationale for the project is that the code is not available elsewhere in a public source repository, making it difficult to extend/contribute to.
@@ -20,10 +23,10 @@ I have my tools in C:\Tools so I use *build.cmd Default tools=C:\Tools encoding=
 
 The library is available under the [MIT License](http://en.wikipedia.org/wiki/MIT_License), for more information see the [License file][1] in the GitHub repository.
 
- [1]: https://github.com/phatcher/CsvReader/License.md
+ [1]: https://github.com/phatcher/CsvReader/blob/master/License.md
 
 ## Getting Started
-A good starting point is to look at Sebastian's [article](http://www.codeproject.com/Articles/9258/A-Fast-CSV-Reader) on Code Project.
+A good starting point is to look at Sébastien's [article](http://www.codeproject.com/Articles/9258/A-Fast-CSV-Reader) on Code Project.
 
 A basic use of the reader something like this...
 ```csharp
@@ -127,7 +130,28 @@ Below is a example using the Columns collection to set up the correct metadata f
 		}
 	}
 ```
-One other issue arose recently on a project where we wanted to use SBC but some of the data was not in the file itself but metadata that needed to be included on every row. The solution was to amend the CSV reader and Columns collection to allow default values to be provided that are not in the data itself.
+The method AddColumnMapping is an extension I wrote to simplify adding mappings to SBC
+```csharp
+    public static class SqlBulkCopyExtensions
+    {
+        public static SqlBulkCopyColumnMapping AddColumnMapping(this SqlBulkCopy sbc, int sourceColumnOrdinal, int targetColumnOrdinal)
+        {
+            var map = new SqlBulkCopyColumnMapping(sourceColumnOrdinal, targetColumnOrdinal);
+            sbc.ColumnMappings.Add(map);
+
+            return map;
+        }
+
+        public static SqlBulkCopyColumnMapping AddColumnMapping(this SqlBulkCopy sbc, string sourceColumn, string targetColumn)
+        {
+            var map = new SqlBulkCopyColumnMapping(sourceColumn, targetColumn);
+            sbc.ColumnMappings.Add(map);
+
+            return map;
+        }
+    }
+```	
+One other issue recently arose where we wanted to use SBC but some of the data was not in the file itself, but metadata that needed to be included on every row. The solution was to amend the CSV reader and Columns collection to allow default values to be provided that are not in the data.
 
 The additional columns should be added at the end of the Columns collection to avoid interfering with the parsing, see the amended example below...
 ```csharp
@@ -158,7 +182,7 @@ The additional columns should be added at the end of the Columns collection to a
 		}
 	}
 ```
-To give an idea of performance, this took the naive sample app using an ORM from 2m 27s to 1.37s use SBC and the full import took just over 11m importing 9.8m records.
+To give an idea of performance, this took a naive sample app using an ORM from 2m 27s to 1.37s using SBC and the full import took just over 11m to import 9.8m records.
 	
 ## Performance
 One of the main reasons for using this library is its excellent performance on reading/parsing raw data, here's a recent run of the benchmark (which is in the source)
