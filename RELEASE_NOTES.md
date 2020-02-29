@@ -1,3 +1,18 @@
+#### 4.0.1 (2018-10-21)
+* Introduce SourceLink support
+
+#### 4.0.0 (2018-03-24)
+* Support .NET Framework 2.0+ and .NET Standard 1.3+
+* Use DateTime.TryParseExact if needed (@milcondoin)
+* Override column capability (@spintronic)
+* Fix handling of duplicate headers (@jonreis)
+* Reduced exception overhead (@spintronic)
+* Added NullBytesRemoval functionality to reduce memory usage and runtime (@andrewpsy)
+* Use StringBuilder instead of string concatenation to speed up reading of huge cell (@andrewpsy)
+* Fixed: Exception in GetFieldType() when hasHeaders is false (@molopony)
+* Fixed: Exception when reading data and hasHeaders is false (@molopony)
+* Fixed: ArgumentOutOfRangeException when hasHeaders is false (@molopony)
+
 #### 3.9.1 (2016-04-09)
 * Added max field length for quoted fields (@criteo)
 * Strengthen Debug.Assert condition in GetSchemaWithoutHeaders (@joshgo)

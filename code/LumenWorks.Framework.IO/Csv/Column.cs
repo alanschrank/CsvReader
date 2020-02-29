@@ -1,9 +1,8 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
 
 namespace LumenWorks.Framework.IO.Csv
 {
-    using System;
-
     /// <summary>
     /// Metadata about a CSV column.
     /// </summary>
@@ -20,6 +19,8 @@ namespace LumenWorks.Framework.IO.Csv
             Type = typeof(string);
             Culture = CultureInfo.CurrentCulture;
             NumberStyles = NumberStyles.Any;
+            DateTimeStyles = DateTimeStyles.None;
+            DateParseExact = null;
         }
 
         /// <summary>
@@ -45,9 +46,18 @@ namespace LumenWorks.Framework.IO.Csv
         /// </summary>
         public string DefaultValue { get; set; }
 
+        /// <summary>
+        /// Get or set the override value of the column.
+        /// </summary>
+        public string OverrideValue { get; set; }
+
         public CultureInfo Culture { get; set; }
 
         public NumberStyles NumberStyles { get; set; }
+        
+        public DateTimeStyles DateTimeStyles { get; set; }
+        
+        public string DateParseExact { get; set; }
 
         /// <summary>
         /// Converts the value into the column type.
@@ -56,8 +66,7 @@ namespace LumenWorks.Framework.IO.Csv
         /// <returns>Converted value.</returns>
         public object Convert(string value)
         {
-            object x;
-            TryConvert(value, out x);           
+            TryConvert(value, out object x);
 
             return x;
         }
@@ -104,7 +113,7 @@ namespace LumenWorks.Framework.IO.Csv
 
                 case "Boolean":
                     {
-                        Int32 x;
+                        int x;
                         converted = int.TryParse(value, NumberStyles, Culture, out x);
                         if (converted)
                         {
@@ -121,7 +130,7 @@ namespace LumenWorks.Framework.IO.Csv
 
                 case "Int32":
                     {
-                        Int32 x;
+                        int x;
                         converted = int.TryParse(value, NumberStyles, Culture, out x);
                         result = x;
                     }
@@ -129,7 +138,7 @@ namespace LumenWorks.Framework.IO.Csv
 
                 case "Int64":
                     {
-                        Int64 x;
+                        long x;
                         converted = long.TryParse(value, NumberStyles, Culture, out x);
                         result = x;
                     }
@@ -137,7 +146,7 @@ namespace LumenWorks.Framework.IO.Csv
 
                 case "Single":
                     {
-                        Single x;
+                        float x;
                         converted = float.TryParse(value, NumberStyles, Culture, out x);
                         result = x;
                     }
@@ -145,7 +154,7 @@ namespace LumenWorks.Framework.IO.Csv
 
                 case "Double":
                     {
-                        Double x;
+                        double x;
                         converted = double.TryParse(value, NumberStyles, Culture, out x);
                         result = x;
                     }
@@ -153,7 +162,7 @@ namespace LumenWorks.Framework.IO.Csv
 
                 case "Decimal":
                     {
-                        Decimal x;
+                        decimal x;
                         converted = decimal.TryParse(value, NumberStyles, Culture, out x);
                         result = x;
                     }
@@ -162,7 +171,14 @@ namespace LumenWorks.Framework.IO.Csv
                 case "DateTime":
                     {
                         DateTime x;
-                        converted = DateTime.TryParse(value, out x);
+                        if (!string.IsNullOrEmpty(DateParseExact))
+                        {
+                            converted = DateTime.TryParseExact(value, DateParseExact, Culture, DateTimeStyles, out x);
+                        }
+                        else
+                        {
+                            converted = DateTime.TryParse(value, Culture, DateTimeStyles, out x);
+                        }
                         result = x;
                     }
                     break;

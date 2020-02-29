@@ -1,134 +1,223 @@
 using System;
-using System.Diagnostics;
+using System.IO;
 
-using LumenWorks.Framework.IO.Csv;
-
-namespace CsvReaderDemo
+namespace CsvReaderBenchmarks
 {
-	class Program
-	{
-		// StopWatch seems to not be accurate enough to be used here (divisions by zero occur when calculating MB/s).
+    internal class Program
+    {
+        // StopWatch seems to not be accurate enough to be used here (divisions by zero occur when calculating MB/s).
 
-		[System.Runtime.InteropServices.DllImport("Kernel32.dll")]
-		private static extern bool QueryPerformanceCounter(out long lpPerformanceCount);
+        [System.Runtime.InteropServices.DllImport("Kernel32.dll")]
+        private static extern bool QueryPerformanceCounter(out long lpPerformanceCount);
 
-		[System.Runtime.InteropServices.DllImport("Kernel32.dll")]
-		private static extern bool QueryPerformanceFrequency(out long lpFrequency);
+        [System.Runtime.InteropServices.DllImport("Kernel32.dll")]
+        private static extern bool QueryPerformanceFrequency(out long lpFrequency);
 
-		[STAThread()]
-		static void Main(string[] args)
-		{
-			//const string TestFile1 = @"..\..\test1.csv";
-			const string TestFile2 = @"..\..\test2.csv";
-			const string TestFile3 = @"..\..\test3.csv";
+        [STAThread()]
+        private static void Main(string[] args)
+        {
+            const string TestFile2 = @"test2.csv";
+            const string TestFile3 = @"test3.csv";
 
-			AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
+#if !NETCOREAPP1_0
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+#endif
 
-			if (args.Length > 0)
-			{
-				if (args.Length == 1)
-				{
-					string s = args[0].ToUpper();
+            if (args.Length > 0)
+            {
+                if (args.Length == 1)
+                {
+                    switch (args[0].ToUpperInvariant())
+                    {
+                        case "CSVREADER":
+                            CsvReaderBenchmark.Run(TestFile3);
+                            return;
 
-					switch (s)
-					{
-						case "CSVREADER":
-							CsvReaderBenchmark.Run(TestFile3);
-							return;
-						case "OLEDB":
-							OleDbBenchmark.Run(TestFile3);
-							return;
-						case "REGEX":
-							RegexBenchmark.Run(TestFile3);
-							return;
-					}
-				}
+                        case "NULLREMOVAL":
+                            PerformanceTestWithNullRemovalStreamReader();
+                            return;
 
-				Console.WriteLine("Possible values : CsvReader, OleDb, Regex");
-				return;
-			}
+                        case "STRINGBUILDER":
+                            PerformanceTestWithStringBuilder();
+                            return;
 
-			const int Field = 72;
-			long fileSize = new System.IO.FileInfo(TestFile2).Length / 1024 / 1024;
+#if !NETCOREAPP1_0 && !NETCOREAPP2_0
+                        case "OLEDB":
+                            OleDbBenchmark.Run(TestFile3);
+                            return;
+#endif
+                        case "REGEX":
+                            RegexBenchmark.Run(TestFile3);
+                            return;
 
-			for (int i = 1; i < 4; i++)
-			{
-				object csv;
+                        default:
+                            Console.WriteLine(@"Possible values: CsvReader, NullRemoval, StringBuilder, OleDb, Regex");
+                            break;
+                    }
+                }
 
-				Console.WriteLine("Test pass #{0} - All fields\n", i);
+                return;
+            }
 
-				DoTest("CsvReader - No cache", fileSize, CsvReaderBenchmark.Run, TestFile2);
-				csv = DoTest("CachedCsvReader - Run 1", fileSize, CachedCsvReaderBenchmark.Run1, TestFile2);
-				DoTest("CachedCsvReader - Run 2", fileSize, CachedCsvReaderBenchmark.Run2, csv);
-				DoTest("TextFieldParser", fileSize, TextFieldParserBenchmark.Run, TestFile2);
-				DoTest("Regex", fileSize, RegexBenchmark.Run, TestFile2);
+            const int field = 72;
+            var fileSize = new FileInfo(TestFile2).Length / 1024 / 1024;
 
-				// seems to not be working on Windows 7 with Office 2007 (and I'm not bothering to try to make it run on my machine)
-				//DoTest("OleDb", fileSize, OleDbBenchmark.Run, TestFile2);
+            for (var i = 1; i < 4; i++)
+            {
+                Console.WriteLine("Test pass #{0} - All fields\n", i);
 
-				Console.WriteLine();
+                DoTest("CsvReader - No cache", fileSize, CsvReaderBenchmark.Run, TestFile2);
+#if !NETCOREAPP1_0
+                object csv = DoTest("CachedCsvReader - Run 1", fileSize, CachedCsvReaderBenchmark.Run1, TestFile2);
+                DoTest("CachedCsvReader - Run 2", fileSize, CachedCsvReaderBenchmark.Run2, csv);
+#endif
+#if !NETCOREAPP1_0 && !NETCOREAPP2_0
+                DoTest("TextFieldParser", fileSize, TextFieldParserBenchmark.Run, TestFile2);
+#endif
+                DoTest("Regex", fileSize, RegexBenchmark.Run, TestFile2);
 
-				Console.WriteLine("Test pass #{0} - Field #{1} (middle)\n", i, Field);
+                // seems to not be working on Windows 7 with Office 2007 (and I'm not bothering to try to make it run on my machine)
+                //DoTest("OleDb", fileSize, OleDbBenchmark.Run, TestFile2);
 
-				DoTest("CsvReader - No cache", fileSize, CsvReaderBenchmark.Run, TestFile2, Field);
-				csv = DoTest("CachedCsvReader - Run 1", fileSize, CachedCsvReaderBenchmark.Run1, TestFile2, Field);
-				DoTest("CachedCsvReader - Run 2", fileSize, CachedCsvReaderBenchmark.Run2, csv, Field);
-				DoTest("TextFieldParser", fileSize, TextFieldParserBenchmark.Run, TestFile2, Field);
-				DoTest("Regex", fileSize, RegexBenchmark.Run, TestFile2, Field);
+                Console.WriteLine();
 
-				// seems to not be working on Windows 7 with Office 2007 (and I'm not bothering to try to make it run on my machine)
-				//DoTest("OleDb", fileSize, OleDbBenchmark.Run, TestFile2, Field);
+                Console.WriteLine("Test pass #{0} - Field #{1} (middle)\n", i, field);
 
-				Console.WriteLine();
-				Console.WriteLine();
-			}
+                DoTest("CsvReader - No cache", fileSize, CsvReaderBenchmark.Run, TestFile2, field);
+#if !NETCOREAPP1_0
+                csv = DoTest("CachedCsvReader - Run 1", fileSize, CachedCsvReaderBenchmark.Run1, TestFile2, field);
+                DoTest("CachedCsvReader - Run 2", fileSize, CachedCsvReaderBenchmark.Run2, csv, field);
+#endif
+#if !NETCOREAPP1_0 && !NETCOREAPP2_0
+                DoTest("TextFieldParser", fileSize, TextFieldParserBenchmark.Run, TestFile2, field);
+#endif
+                DoTest("Regex", fileSize, RegexBenchmark.Run, TestFile2, field);
 
-			Console.WriteLine("Done");
-			Console.ReadLine();
-		}
+                // seems to not be working on Windows 7 with Office 2007 (and I'm not bothering to try to make it run on my machine)
+#if !NETCOREAPP1_0 && !NETCOREAPP2_0
+                //DoTest("OleDb", fileSize, OleDbBenchmark.Run, TestFile2, Field);
+#endif
 
-		delegate object TestCallback(object[] args);
+                Console.WriteLine();
+                Console.WriteLine();
+            }
 
-		static object DoTest(string name, long fileSize, TestCallback testCallback, params object[] args)
-		{
-			long start;
-			long end;
-			long frequency;
-			long clocks;
-			double time;
-			double rate;
+            Console.WriteLine("Done");
+            Console.ReadLine();
+        }
 
-			QueryPerformanceFrequency(out frequency);
+        private delegate object TestCallback(object[] args);
 
-			GC.Collect();
-			GC.WaitForPendingFinalizers();
-			GC.Collect();
+        private static object DoTest(string name, long fileSize, TestCallback testCallback, params object[] args)
+        {
+            QueryPerformanceFrequency(out long frequency);
 
-			QueryPerformanceCounter(out start);
-			object value = testCallback(args);
-			QueryPerformanceCounter(out end);
-			GetStats(start, end, frequency, fileSize, out clocks, out time, out rate);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
 
-			Console.WriteLine("{0} : {1} ticks, {2:f4} sec., {3:f4} MB/sec.", name.PadRight(25), clocks, time, rate);
+            QueryPerformanceCounter(out long start);
+            var value = testCallback(args);
+            QueryPerformanceCounter(out long end);
+            GetStats(start, end, frequency, fileSize, out long clocks, out double time, out double rate);
 
-			return value;
-		}
+            Console.WriteLine("{0} : {1} ticks, {2:f4} sec., {3:f4} MB/sec.", name.PadRight(25), clocks, time, rate);
 
-		static void GetStats(long start, long end, long frequency, long fileSize, out long clocks, out double time, out double rate)
-		{
-			clocks = end - start;
-			time = (double) clocks / frequency;
-			rate = fileSize / time;
-		}
+            return value;
+        }
 
-		static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-		{
-			if (e.ExceptionObject != null)
-				Console.WriteLine("Unhandled exception :\n\n'{0}'.", e.ExceptionObject.ToString());
-			else
-				Console.WriteLine("Unhandled exception occured.");
+        private static void GetStats(long start, long end, long frequency, long fileSize, out long clocks, out double time, out double rate)
+        {
+            clocks = end - start;
+            time = (double) clocks / frequency;
+            rate = fileSize / time;
+        }
 
-			Console.ReadLine();
-		}
-	}
+#if !NETCOREAPP1_0
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (e.ExceptionObject != null)
+            {
+                Console.WriteLine("Unhandled exception :\n\n'{0}'.", e.ExceptionObject);
+            }
+            else
+            {
+                Console.WriteLine("Unhandled exception occured.");
+            }
+            Console.ReadLine();
+        }
+#endif
+
+        private static void PerformanceTestWithNullRemovalStreamReader()
+        {
+            var path = string.Empty;
+            try
+            {
+                path = GenerateCsvFile();
+                var fileSize = new FileInfo(path).Length / 1024 / 1024;
+                DoTest("CsvReader -     without using NullRemovalStreamReader", fileSize, CsvReaderBenchmark.Run, path);
+                Console.WriteLine();
+                var result = DoTest("CsvReader - with NullRemovalStreamReader without mark", fileSize, CsvReaderBenchmark.Run, path, -1, false);
+                Console.WriteLine(result + Environment.NewLine);
+                result = DoTest("CsvReader - with NullRemovalStreamReader with    mark", fileSize, CsvReaderBenchmark.Run, path, -1, true);
+                Console.WriteLine(result);
+            }
+            finally
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+
+        private static void PerformanceTestWithStringBuilder()
+        {
+            var path = string.Empty;
+            try
+            {
+                path = GenerateCsvFile(false, 5);
+                var fileSize = new FileInfo(path).Length / 1024 / 1024;
+                DoTest("CsvReader - performance test with large cell", fileSize, CsvReaderBenchmark.Run, path);
+            }
+            finally
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+
+        private static string GenerateCsvFile(bool testNull = true, int x = 20)
+        {
+            // generate x million bytes; file size will be a little over x MB
+            long count = x * 1024 * 1024;
+            var path = Path.GetTempFileName();
+
+            using (var sw = File.AppendText(path))
+            {
+                for (var i = 1; i <= 5; i++)
+                {
+                    sw.WriteLine("cell{0}1,cell{0}2,cell{0}3", i);
+                }
+                if (testNull)
+                {
+                    sw.Write("cell61,cell62,cell63 followed by " + count + " null bytes");
+                    sw.Write(new char[count]);
+                }
+                else
+                {
+                    sw.Write("cell61,cell62,cell63 followed by " + count + " 'a' characters=>");
+                    var data = new char [count];
+                    for (var i = 0; i < count; i++)
+                    {
+                        data[i] = 'a';
+                    }
+                    sw.Write(data);
+                }
+            }
+            return path;
+        }
+    }
 }

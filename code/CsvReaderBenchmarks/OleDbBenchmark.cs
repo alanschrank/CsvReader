@@ -1,67 +1,77 @@
-#region Using directives
-
-using System;
+#if !NETCOREAPP1_0 && !NETCOREAPP2_0
 using System.Data;
 using System.Data.OleDb;
+#endif
 using System.IO;
-using System.Text;
 
-#endregion
-
-namespace CsvReaderDemo
+namespace CsvReaderBenchmarks
 {
-	public sealed class OleDbBenchmark
-	{
-		private OleDbBenchmark()
-		{
-		}
+#if !NETCOREAPP1_0 && !NETCOREAPP2_0
+    using System.Data;
+    using System.Data.OleDb;
+    using System.IO;
 
-		public static object Run(object[] args)
-		{
-			if (args.Length == 1)
-				Run((string) args[0]);
-			else
-				Run((string) args[0], (int) args[1]);
+    public sealed class OleDbBenchmark
+    {
+        private OleDbBenchmark()
+        {
+        }
 
-			return null;
-		}
+        public static object Run(object[] args)
+        {
+            if (args.Length == 1)
+            {
+                Run((string) args[0]);
+            }
+            else
+            {
+                Run((string) args[0], (int) args[1]);
+            }
 
-		public static void Run(string path)
-		{
-			Run(path, -1);
-		}
+            return null;
+        }
 
-		public static void Run(string path, int field)
-		{
-			string directory = Path.GetDirectoryName(path);
-			string file = Path.GetFileName(path);
+        public static void Run(string path)
+        {
+            Run(path, -1);
+        }
 
-			using (OleDbConnection cnn = new OleDbConnection(@"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + directory + @";Extended Properties=""Text;HDR=No;FMT=Delimited"""))
-			{
-				using (OleDbCommand cmd = new OleDbCommand(@"SELECT * FROM " + file, cnn))
-				{
-					cnn.Open();
+        public static void Run(string path, int field)
+        {
+            var directory = Path.GetDirectoryName(path);
+            var file = Path.GetFileName(path);
 
-					using (OleDbDataReader dr = cmd.ExecuteReader(CommandBehavior.SequentialAccess))
-					{
-						string s;
+            using (var cnn = new OleDbConnection(@"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + directory + @";Extended Properties=""Text;HDR=No;FMT=Delimited"""))
+            {
+                using (var cmd = new OleDbCommand(@"SELECT * FROM " + file, cnn))
+                {
+                    cnn.Open();
 
-						if (field == -1)
-						{
-							while (dr.Read())
-							{
-								for (int i = 0; i < dr.FieldCount; i++)
-									s = dr.GetValue(i) as string;
-							}
-						}
-						else
-						{
-							while (dr.Read())
-								s = dr.GetValue(field) as string;
-						}
-					}
-				}
-			}
-		}
-	}
+                    using (var dr = cmd.ExecuteReader(CommandBehavior.SequentialAccess))
+                    {
+                        string s;
+
+                        if (field == -1)
+                        {
+                            while (dr.Read())
+                            {
+                                for (var i = 0; i < dr.FieldCount; i++)
+                                {
+                                    s = dr.GetValue(i) as string;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            while (dr.Read())
+                            {
+                                s = dr.GetValue(field) as string;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+#endif
 }
